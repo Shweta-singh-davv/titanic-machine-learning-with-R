@@ -1,0 +1,136 @@
+#lets make a basic machine learning model with the titanic dataset
+# we will do the process step by step
+#lets read our dataset into r and load the required library
+
+titanic_train<-read.csv("C:/Users/SHWETA/downloads/train.csv",sep=",",header=TRUE)
+titanic_test<-read.csv("C:/Users/SHWETA/downloads/test.csv",sep=",",header=TRUE)
+library(tidyverse)
+glimpse(titanic_train)
+glimpse(titanic_test)
+titanic_test$Survived<-NA
+titanic<-rbind(titanic_train,titanic_test)
+glimpse(titanic)
+
+# now first step should be data analysis and understand its features at a glance
+
+view(titanic)
+
+
+
+# we can see that columns survived ,PClass,Sex,Cabin, Embarked should be class Factor
+#lets see unique values of SibSp and Parch
+titanic$Survived<-as.factor(titanic$Survived)
+```
+
+
+
+titanic$Pclass<-as.factor(titanic$Pclass)
+titanic$Sex<-as.factor(titanic$Sex)
+titanic$Cabin<-as.factor(titanic$Cabin)
+titanic$Embarked<-as.factor(titanic$Embarked)
+
+unique(titanic$SibSp)
+unique(titanic$Parch)
+summary(titanic)
+#after reading the summary of titanic_train dataset, it can be seen that
+#Age has 177 NAs.fare has 1 NA
+#deleting these rows can't be a good option.By looking at summary of Age, replacing the
+#NAs with median and mean can be a safe option
+titanic$Age[is.na(titanic$Age)]<-median(titanic$Age,na.rm=TRUE)
+titanic$Fare[is.na(titanic$Fare)]<-mean(titanic$Fare,na.rm=TRUE)
+
+# now once again lets see summary of our dataset
+summary(titanic)
+glimpse(titanic)
+ # from summary itself , we can analyse most of the information if studied thoroughly
+#1. number of dead was too much more than the number of survived
+#2. highest number of people were from Passenger class 3.
+#3. male onboard were more than the females.
+#4.most of the people onboard were of age from mid 20s to mis 30s
+#only less number of elderly
+#5. majority of pessangers onboard embarked the ship from southampton.
+
+
+```
+
+
+
+
+```{r}
+# to get more insight about the data , let's visualise it.
+#let's see,in the survived passengers , the number between male and female
+x<-titanic_train %>% 
+  select(Survived,Sex) %>% 
+  filter(Survived==1) 
+plot(x$Sex)
+#intrestingly, female survived were more than male,it can be possible as 
+#women and children would have been prioritised during resque.
+
+
+
+
+
+
+
+boxplot(titanic_train$Age)
+#most of the population lies between 20 to 60 age group, with outliers 
+#in age group of 60 to 80 and some infants.
+#let's see if they survived or not.
+outliers_survived<-titanic_train %>% 
+  filter((Age>=55&Survived==1)|(Age<=1&Survived==1))
+outliers_survived
+outliers_not_survived<-titanic_train %>% 
+  filter((Age>=55&Survived==0)|(Age<=1&Survived==0))
+outliers_not_survived
+summary(outliers_survived)
+summary(outliers_not_survived)
+#infants and elderly survived were 25 and not survived were 31 again most of them
+#who did not survived were male.
+```
+
+
+
+
+#before building our model,first let's see correlation between various 
+#variable as it will become easy to select appropriate features for our
+#model.
+x<-titanic_train %>% 
+  select(Age,SibSp,Parch,Fare)
+cor(x)
+#not very high correlation between these variables.
+
+
+
+
+
+#using decision tree for feature selection
+install.packages("caret",dependencies = TRUE)
+library(FSelector)
+
+library(rpart)
+library(rpart.plot)
+library(data.tree)
+tree<-rpart(Survived~Pclass+Sex+Age+SibSp+Parch+Embarked,data=titanic_train)
+prp(tree)
+#now let's build our logistic regression model
+titanic_model<-glm(Survived~Pclass+Sex+Age+SibSp+Embarked,data=titanic_train,family = "binomial")
+#using the above model to predict the already given results in titanic_train dataset
+# and checking the accuracy
+res1<-predict(titanic_model,titanic_train,type="response")
+
+head(res1)
+#converting predicted values to 0 and 1
+titanic_train$survived_predict<-ifelse(res1>=0.5,1,0)
+head(titanic_train$survived_predict)
+#now , checking accuracy
+accuracy<-mean(titanic_train$Survived==titanic_train$survived_predict)
+accuracy
+
+# let's use this model to predict the survival data of our test dataset
+glimpse(titanic_test)
+titanic_test$PClass<-as.factor(titanic_test$PClass)
+res<-predict(titanic_model,newdata=titanic_test,type="response")
+head(res)
+# converting or predicted values to 0 and 1
+titanic_test$Survived<-ifelse(res>=.5,1,0)
+```
